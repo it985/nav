@@ -1,12 +1,12 @@
 $bg-color: #fbfbfb;
 
 .app-page {
-  padding: 45px 0;
+  padding: 45px 0 15px 0;
   min-height: 100vh;
   background: #f6f6f6;
 
   .header {
-    z-index: 9999;;
+    z-index: 9999;
     position: fixed;
     top: 0;
     left: 0;
@@ -43,11 +43,10 @@ $bg-color: #fbfbfb;
         width: 25px;
         background: #999;
         transform-origin: right center;
-        transition: .1s linear;
+        transition: 0.1s linear;
       }
 
       &.active {
-
         i:nth-child(1) {
           transform: rotate(-45deg);
         }
@@ -67,7 +66,10 @@ $bg-color: #fbfbfb;
       box-shadow: 1px 1px 5px #ccc;
       overflow: hidden;
       background: $bg-color;
-      transition: .1s linear;
+      transition: 0.1s linear;
+      &.active {
+        display: block;
+      }
     }
 
     .nav-title {
@@ -78,34 +80,34 @@ $bg-color: #fbfbfb;
 
       &:active,
       &.active {
-        background: rgba(0, 0, 0, .05);
+        background: rgba(0, 0, 0, 0.05);
       }
     }
   }
 
   .wrapper {
-    margin: 15px 10px 30px 10px;
+    margin: 0 0 30px 0;
 
     .children-nav {
       background: $bg-color;
-      margin: 15px 0;
+      margin: 0 0 15px 0;
       padding: 10px 10px 5px;
       white-space: nowrap;
       overflow: auto;
       box-shadow: 0 0 3px #ccc;
 
-      a {
+      .tag {
         position: relative;
         display: inline-block;
         font-size: 14px;
         padding: 3px 5px;
         margin: 0 3px 5px 0;
-        transition: background .1s linear;
+        transition: background 0.1s linear;
         color: #333;
       }
 
       .active::after {
-        content: "";
+        content: '';
         position: absolute;
         bottom: 5px;
         left: 50%;
@@ -138,6 +140,7 @@ $bg-color: #fbfbfb;
       padding: 10px;
       border-top: 1px solid #eee;
       margin-top: 8px;
+      margin-bottom: 0;
       word-break: break-all;
       word-wrap: break-word;
       white-space: pre-wrap;
@@ -147,7 +150,7 @@ $bg-color: #fbfbfb;
     .block-title {
       padding: 10px 0 10px 15px;
       border-bottom: 1px solid #eee;
-      color: #3F51B5;
+      color: #3f51b5;
     }
 
     .top {
@@ -183,11 +186,43 @@ $bg-color: #fbfbfb;
       }
 
       &:hover {
-
         ::ng-deep .mark {
           bottom: 0 !important;
         }
       }
+    }
+  }
+
+  .tagbox {
+    display: flex;
+    padding: 0 8px 8px 8px;
+    flex-wrap: wrap;
+  }
+  .tag-item {
+    margin: 6px 6px 0 0;
+    padding: 0 6px;
+    border-radius: 2px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    transition: all 0.1s linear;
+    color: #fff;
+    a {
+      color: currentColor;
+    }
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  ::ng-deep {
+    #app-footer {
+      margin-top: 40px;
+    }
+    #app-footer,
+    #app-footer .copyright {
+      margin-bottom: 10px;
+      color: #666;
     }
   }
 }

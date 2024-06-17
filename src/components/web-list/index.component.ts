@@ -1,27 +1,27 @@
-// @ts-nocheck
 // Copyright @ 2018-present xiejiahe. All rights reserved. MIT license.
 // See https://github.com/xjh22222228/nav
 
 import { Component, OnInit, Input } from '@angular/core'
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop'
 import { websiteList } from 'src/store'
-import { INavFourProp, INavProps } from 'src/types'
+import { IWebProps, INavProps } from 'src/types'
 import { setWebsiteList, queryString, fuzzySearch } from 'src/utils'
 import { isLogin } from 'src/utils/user'
 import { ActivatedRoute } from '@angular/router'
 
-let DEFAULT_WEBSITE = []
+let DEFAULT_WEBSITE: Array<IWebProps> = []
 
 @Component({
   selector: 'app-web-list',
   templateUrl: './index.component.html',
-  styleUrls: ['./index.component.scss']
+  styleUrls: ['./index.component.scss'],
 })
 export class WebListComponent implements OnInit {
   @Input() max: number = 110
+  @Input() search = true
 
   websiteList: INavProps[] = websiteList
-  dataList: INavFourProp[] = []
+  dataList: IWebProps[] = []
 
   constructor(private activatedRoute: ActivatedRoute) {}
 
@@ -32,11 +32,11 @@ export class WebListComponent implements OnInit {
       const { q } = queryString()
       const result = fuzzySearch(this.websiteList, q)
 
-      if (q.trim()) {
+      if (this.search && q.trim()) {
         if (result.length === 0) {
-          this.dataList = [];
+          this.dataList = []
         } else {
-          this.dataList = result[0].nav.slice(0, this.max);
+          this.dataList = result[0].nav.slice(0, this.max)
         }
       } else {
         this.dataList = DEFAULT_WEBSITE
@@ -47,12 +47,12 @@ export class WebListComponent implements OnInit {
 
   // 获取置顶WEB
   getTopWeb() {
-    const dataList: INavFourProp[] = []
+    const dataList: IWebProps[] = []
     const max = this.max
 
-    function r(nav) {
+    function r(nav: any) {
       if (!Array.isArray(nav)) return
-  
+
       for (let i = 0; i < nav.length; i++) {
         if (dataList.length > max) {
           break
@@ -70,6 +70,7 @@ export class WebListComponent implements OnInit {
     }
     r(websiteList)
 
+    // @ts-ignore
     this.dataList = dataList.sort((a, b) => a.index - b.index)
     DEFAULT_WEBSITE = this.dataList
   }
@@ -77,16 +78,16 @@ export class WebListComponent implements OnInit {
   handleDrop(event: CdkDragDrop<string[]>): void {
     moveItemInArray(this.dataList, event.previousIndex, event.currentIndex)
 
-    const m = {}
+    const m: Record<string, any> = {}
 
     for (let i = 1; i <= this.dataList.length; i++) {
       const item = this.dataList[i - 1]
       m[`${item.name}${item.url}`] = i
     }
 
-    function r(nav) {
+    function r(nav: any) {
       if (!Array.isArray(nav)) return
-  
+
       for (let i = 0; i < nav.length; i++) {
         const item = nav[i]
         if (item.url) {
@@ -103,7 +104,11 @@ export class WebListComponent implements OnInit {
     setWebsiteList(websiteList)
   }
 
-  goUrl(url) {
+  goUrl(url: string) {
     window.open(url)
+  }
+
+  trackByItemWeb(a: any, item: any) {
+    return item.id
   }
 }

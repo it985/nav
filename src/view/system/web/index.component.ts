@@ -4,34 +4,34 @@
 
 import { Component } from '@angular/core'
 import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop'
-import { INavProps, INavTwoProp, INavThreeProp, INavFourProp } from 'src/types'
-import { websiteList } from 'src/store'
+import { INavProps, INavTwoProp, INavThreeProp, IWebProps } from 'src/types'
+import { websiteList, settings, tagMap } from 'src/store'
 import { getToken } from 'src/utils/user'
 import { NzMessageService } from 'ng-zorro-antd/message'
 import { NzModalService } from 'ng-zorro-antd/modal'
 import { NzNotificationService } from 'ng-zorro-antd/notification'
 import { FormBuilder, FormGroup, Validators } from '@angular/forms'
-import { setWebsiteList } from 'src/utils'
+import { setWebsiteList, deleteByWeb, getTextContent } from 'src/utils'
 import { updateFileContent } from 'src/services'
 import { DB_PATH, STORAGE_KEY_MAP } from 'src/constants'
 import config from '../../../../nav.config'
 import { $t } from 'src/locale'
-import { tagMap } from 'src/store'
 import { saveAs } from 'file-saver'
+import event from 'src/utils/mitt'
 
 @Component({
   selector: 'app-admin',
   templateUrl: './index.component.html',
-  styleUrls: ['./index.component.scss']
+  styleUrls: ['./index.component.scss'],
 })
 export default class WebpComponent {
   $t = $t
+  settings = settings
   validateForm!: FormGroup
   websiteList: INavProps[] = websiteList
   gitRepoUrl = config.gitRepoUrl
   isLogin = !!getToken()
   showCreateModal = false
-  showCreateWebModal = false
   syncLoading = false
   uploading = false
   tabActive = 0
@@ -42,23 +42,20 @@ export default class WebpComponent {
   threeSelect = ''
   tagMap = tagMap
   objectKeys = Object.keys
-  websiteDetail: any = []
 
   twoTableData: INavTwoProp[] = []
   threeTableData: INavThreeProp[] = []
-  websiteTableData: INavFourProp[] = []
+  websiteTableData: IWebProps[] = []
 
   checkedAll = false
-  setOfCheckedId = new Set<string>();
+  setOfCheckedId = new Set<string>()
 
-  constructor (
+  constructor(
     private fb: FormBuilder,
     private modal: NzModalService,
     private notification: NzNotificationService,
-    private message: NzMessageService,
-  ) {}
-
-  ngOnInit () {
+    private message: NzMessageService
+  ) {
     this.validateForm = this.fb.group({
       title: ['', [Validators.required]],
       icon: [''],
@@ -66,7 +63,35 @@ export default class WebpComponent {
     })
   }
 
-  onAllChecked(checked: boolean, type: 1|2|3|4) {
+  ngOnInit() {}
+
+  getAllErrorWeb() {
+    this.oneSelect = ''
+    this.twoSelect = ''
+    this.threeSelect = ''
+    this.onTabChange()
+    this.websiteTableData = []
+    const websiteTableData = []
+    function r(nav) {
+      if (!Array.isArray(nav)) return
+
+      for (let i = 0; i < nav.length; i++) {
+        const item = nav[i]
+        if (item.url && item.ok === false) {
+          websiteTableData.push(item)
+        } else {
+          r(item.nav)
+        }
+      }
+    }
+    r(this.websiteList)
+    this.websiteTableData = websiteTableData
+    if (websiteTableData.length <= 0) {
+      this.message.success('未发现异常网站！')
+    }
+  }
+
+  onAllChecked(checked: boolean, type: 1 | 2 | 3 | 4) {
     this.setOfCheckedId.clear()
     switch (type) {
       case 1:
@@ -77,7 +102,7 @@ export default class WebpComponent {
             this.setOfCheckedId.delete(item.title)
           }
         })
-        break;
+        break
 
       case 2:
         this.twoTableData.forEach((item) => {
@@ -87,7 +112,7 @@ export default class WebpComponent {
             this.setOfCheckedId.delete(item.title as string)
           }
         })
-        break;
+        break
 
       case 3:
         this.threeTableData.forEach((item) => {
@@ -97,7 +122,7 @@ export default class WebpComponent {
             this.setOfCheckedId.delete(item.title as string)
           }
         })
-        break;
+        break
 
       case 4:
         this.websiteTableData.forEach((item) => {
@@ -107,7 +132,7 @@ export default class WebpComponent {
             this.setOfCheckedId.delete(item.name)
           }
         })
-        break;
+        break
     }
   }
 
@@ -119,58 +144,70 @@ export default class WebpComponent {
     }
   }
 
-  onBatchDelete(type: 1|2|3|4) {
+  onBatchDelete(type: 1 | 2 | 3 | 4) {
     switch (type) {
       case 1:
-        this.setOfCheckedId.forEach(value => {
-          const idx = this.websiteList.findIndex(item => item.title === value)
+        this.setOfCheckedId.forEach((value) => {
+          const idx = this.websiteList.findIndex((item) => item.title === value)
           if (idx >= 0) {
             this.websiteList.splice(idx, 1)
           }
         })
-        break;
+        break
 
-      case 2: {
-        this.twoTableData = this.twoTableData.filter(item => {
-          return !this.setOfCheckedId.has(item.title as string)
-        })
-        const idx = this.websiteList.findIndex(item => item.title === this.oneSelect)
-        if (idx >= 0) {
-          this.websiteList[idx].nav = this.twoTableData
-        }
-      }
-        break;
-
-      case 3: {
-        this.threeTableData = this.threeTableData.filter(item => {
-          return !this.setOfCheckedId.has(item.title as string)
-        })
-        const idx = this.websiteList.findIndex(item => item.title === this.oneSelect)
-        if (idx >= 0) {
-          const idx2 = this.websiteList[idx].nav.findIndex(item => item.title === this.twoSelect)
-          if (idx2 >= 0) {
-            this.websiteList[idx].nav[idx2].nav = this.threeTableData
+      case 2:
+        {
+          this.twoTableData = this.twoTableData.filter((item) => {
+            return !this.setOfCheckedId.has(item.title as string)
+          })
+          const idx = this.websiteList.findIndex(
+            (item) => item.title === this.oneSelect
+          )
+          if (idx >= 0) {
+            this.websiteList[idx].nav = this.twoTableData
           }
         }
-      }
-        break;
+        break
 
-      case 4: {
-        this.websiteTableData = this.websiteTableData.filter(item => {
-          return !this.setOfCheckedId.has(item.name)
-        })
-        const idx = this.websiteList.findIndex(item => item.title === this.oneSelect)
-        if (idx >= 0) {
-          const idx2 = this.websiteList[idx].nav.findIndex(item => item.title === this.twoSelect)
-          if (idx2 >= 0) {
-            const idx3 = this.websiteList[idx].nav[idx2].nav.findIndex(item => item.title === this.threeSelect)
-            if (idx3 >= 0) {
-              this.websiteList[idx].nav[idx2].nav[idx3].nav = this.websiteTableData
+      case 3:
+        {
+          this.threeTableData = this.threeTableData.filter((item) => {
+            return !this.setOfCheckedId.has(item.title as string)
+          })
+          const idx = this.websiteList.findIndex(
+            (item) => item.title === this.oneSelect
+          )
+          if (idx >= 0) {
+            const idx2 = this.websiteList[idx].nav.findIndex(
+              (item) => item.title === this.twoSelect
+            )
+            if (idx2 >= 0) {
+              this.websiteList[idx].nav[idx2].nav = this.threeTableData
             }
           }
         }
-      }
-        break;
+        break
+
+      case 4:
+        {
+          const deleteData = []
+          this.websiteTableData = this.websiteTableData.filter((item) => {
+            const has = !this.setOfCheckedId.has(item.name)
+            if (!has) {
+              deleteData.push(item)
+            }
+            return has
+          })
+          deleteData.forEach((item) => {
+            deleteByWeb({
+              ...item,
+              name: getTextContent(item.name),
+              desc: getTextContent(item.desc),
+            })
+          })
+          this.message.success($t('_delSuccess'))
+        }
+        break
     }
     this.onTabChange()
     setWebsiteList(this.websiteList)
@@ -186,14 +223,14 @@ export default class WebpComponent {
         setTimeout(() => {
           window.location.reload()
         }, 1500)
-      }
+      },
     })
   }
 
   handleDownloadBackup() {
     const value = JSON.stringify(this.websiteList)
-    const blob = new Blob([value], {type: "text/plain;charset=utf-8"});
-    saveAs(blob, "db.json");
+    const blob = new Blob([value], { type: 'text/plain;charset=utf-8' })
+    saveAs(blob, 'db.json')
   }
 
   handleUploadBackup(e: any) {
@@ -205,18 +242,15 @@ export default class WebpComponent {
     const file = files[0]
     const fileReader = new FileReader()
     fileReader.readAsText(file)
-    fileReader.onload = function(data) {
+    fileReader.onload = function (data) {
       try {
         const { result } = data.target as any
         that.websiteList = JSON.parse(result as string)
         setWebsiteList(that.websiteList)
-        e.target.value = '';
+        e.target.value = ''
         that.message.success($t('_actionSuccess'))
       } catch (error: any) {
-        that.notification.error(
-          $t('_error'),
-          error.message
-        )
+        that.notification.error($t('_error'), error.message)
       }
     }
   }
@@ -225,13 +259,46 @@ export default class WebpComponent {
     history.go(-1)
   }
 
-  toggleCreateWebModal() {
+  openMoveWebModal(data: IWebProps, index: number) {
+    const oneIndex = this.websiteList.findIndex(
+      (item) => item.title === this.oneSelect
+    )
+    const twoIndex = this.twoTableData.findIndex(
+      (item) => item.title === this.twoSelect
+    )
+    const threeIndex = this.threeTableData.findIndex(
+      (item) => item.title === this.threeSelect
+    )
+    event.emit('MOVE_WEB', {
+      indexs: [oneIndex, twoIndex, threeIndex, index],
+      data: [data],
+    })
+  }
+
+  openCreateWebModal() {
     if (this.tabActive === 3 && !this.threeSelect) {
       return this.message.error($t('_sel3'))
     }
+    const oneIndex = this.websiteList.findIndex(
+      (item) => item.title === this.oneSelect
+    )
+    const twoIndex = this.twoTableData.findIndex(
+      (item) => item.title === this.twoSelect
+    )
+    const threeIndex = this.threeTableData.findIndex(
+      (item) => item.title === this.threeSelect
+    )
+    event.emit('CREATE_WEB', {
+      oneIndex,
+      twoIndex,
+      threeIndex,
+    })
+  }
 
-    this.websiteDetail = null
-    this.showCreateWebModal = !this.showCreateWebModal
+  openEditModal(detail: IWebProps) {
+    event.emit('CREATE_WEB', {
+      detail,
+    })
   }
 
   toggleCreateModal() {
@@ -248,25 +315,6 @@ export default class WebpComponent {
     this.isEdit = false
     this.showCreateModal = !this.showCreateModal
     this.validateForm.reset()
-  }
-
-  onOkCreateWeb(payload: INavFourProp) {
-    // 编辑
-    if (this.websiteDetail) {
-      this.websiteTableData[this.editIdx] = payload
-    } else {
-      // 创建
-      const exists = this.websiteTableData.some(item => item.name === payload.name)
-      if (exists) {
-        return this.message.error($t('_repeatAdd'))
-      }
-
-      this.websiteTableData.unshift(payload)
-      this.message.success($t('_addSuccess'))
-    }
-
-    setWebsiteList(this.websiteList)
-    this.toggleCreateWebModal()
   }
 
   onTabChange(index?: number) {
@@ -311,7 +359,11 @@ export default class WebpComponent {
 
   // 拖拽三级分类
   dropThree(event: CdkDragDrop<string[]>): void {
-    moveItemInArray(this.threeTableData, event.previousIndex, event.currentIndex)
+    moveItemInArray(
+      this.threeTableData,
+      event.previousIndex,
+      event.currentIndex
+    )
     setWebsiteList(this.websiteList)
   }
 
@@ -324,20 +376,28 @@ export default class WebpComponent {
 
   // 拖拽网站
   dropWebsite(event: CdkDragDrop<string[]>): void {
-    moveItemInArray(this.websiteTableData, event.previousIndex, event.currentIndex)
+    moveItemInArray(
+      this.websiteTableData,
+      event.previousIndex,
+      event.currentIndex
+    )
     setWebsiteList(this.websiteList)
   }
 
   // 删除网站
-  handleConfirmDelWebsite(idx: number) {
+  handleConfirmDelWebsite(data: any, idx: number) {
     this.websiteTableData.splice(idx, 1)
+    deleteByWeb({
+      ...data,
+      name: getTextContent(data.name),
+      desc: getTextContent(data.desc),
+    })
     this.message.success($t('_delSuccess'))
-    setWebsiteList(this.websiteList)
   }
 
   hanldeOneSelect(value: any) {
     this.oneSelect = value
-    const findItem = this.websiteList.find(item => item.title === value)
+    const findItem = this.websiteList.find((item) => item.title === value)
     if (findItem) {
       this.twoTableData = findItem.nav
     }
@@ -348,7 +408,7 @@ export default class WebpComponent {
 
   hanldeTwoSelect(value: any) {
     this.twoSelect = value
-    const findItem = this.twoTableData.find(item => item.title === value)
+    const findItem = this.twoTableData.find((item) => item.title === value)
     if (findItem) {
       this.threeTableData = findItem.nav
     }
@@ -358,7 +418,7 @@ export default class WebpComponent {
 
   hanldeThreeSelect(value: any) {
     this.threeSelect = value
-    const findItem = this.threeTableData.find(item => item.title === value)
+    const findItem = this.threeTableData.find((item) => item.title === value)
     if (findItem) {
       this.websiteTableData = findItem.nav
     }
@@ -366,12 +426,13 @@ export default class WebpComponent {
   }
 
   handleEditBtn(data: any, editIdx: number) {
-    let { title, icon, name } = data
+    let { title, icon, name, ownVisible } = data
     this.toggleCreateModal()
     this.isEdit = true
     this.editIdx = editIdx
     this.validateForm.get('title')!.setValue(title || name || '')
     this.validateForm.get('icon')!.setValue(icon || '')
+    this.validateForm.get('ownVisible')!.setValue(!!ownVisible)
   }
 
   handleSync() {
@@ -385,21 +446,21 @@ export default class WebpComponent {
         updateFileContent({
           message: 'update db',
           content: JSON.stringify(this.websiteList),
-          path: DB_PATH
+          path: DB_PATH,
         })
-        .then(() => {
-          this.message.success($t('_syncSuccessTip'))
-        })
-        .catch(res => {
-          this.notification.error(
-            `${$t('_error')}: ${res?.response?.status ?? 401}`,
-            $t('_syncFailTip')
-          )
-        })
-        .finally(() => {
-          this.syncLoading = false
-        })
-      }
+          .then(() => {
+            this.message.success($t('_syncSuccessTip'))
+          })
+          .catch((res) => {
+            this.notification.error(
+              `${$t('_error')}: ${res?.response?.status ?? 401}`,
+              $t('_syncFailTip')
+            )
+          })
+          .finally(() => {
+            this.syncLoading = false
+          })
+      },
     })
   }
 
@@ -413,32 +474,55 @@ export default class WebpComponent {
 
     let { title, icon, ownVisible } = this.validateForm.value
 
-    if (!title) return
+    if (!title || !title.trim()) {
+      this.message.error('分类名称不能为空')
+      return
+    }
+    title = title.trim()
 
     if (this.isEdit) {
       switch (this.tabActive) {
         // 编辑一级分类
-        case 0: {
-          this.websiteList[this.editIdx].title = title
-          this.websiteList[this.editIdx].icon = icon
-          this.websiteList[this.editIdx].ownVisible = ownVisible
-        }
+        case 0:
+          {
+            const exists = this.websiteList.some((item) => item.title === title)
+            if (exists && this.websiteList[this.editIdx].title !== title) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+            this.websiteList[this.editIdx].title = title
+            this.websiteList[this.editIdx].icon = icon
+            this.websiteList[this.editIdx].ownVisible = ownVisible
+          }
           break
-  
+
         // 编辑二级分类
-        case 1: {
-          this.twoTableData[this.editIdx].title = title
-          this.twoTableData[this.editIdx].icon = icon
-          this.twoTableData[this.editIdx].ownVisible = ownVisible
-        }
+        case 1:
+          {
+            const exists = this.twoTableData.some(
+              (item) => item.title === title
+            )
+            if (exists && this.twoTableData[this.editIdx].title !== title) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+            this.twoTableData[this.editIdx].title = title
+            this.twoTableData[this.editIdx].icon = icon
+            this.twoTableData[this.editIdx].ownVisible = ownVisible
+          }
           break
-  
+
         // 编辑三级分类
-        case 2: {
-          this.threeTableData[this.editIdx].title = title
-          this.threeTableData[this.editIdx].icon = icon
-          this.threeTableData[this.editIdx].ownVisible = ownVisible
-        }
+        case 2:
+          {
+            const exists = this.threeTableData.some(
+              (item) => item.title === title
+            )
+            if (exists && this.threeTableData[this.editIdx].title !== title) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+            this.threeTableData[this.editIdx].title = title
+            this.threeTableData[this.editIdx].icon = icon
+            this.threeTableData[this.editIdx].ownVisible = ownVisible
+          }
           break
       }
 
@@ -446,54 +530,61 @@ export default class WebpComponent {
     } else {
       switch (this.tabActive) {
         // 新增一级分类
-        case 0: {
-          const exists = this.websiteList.some(item => item.title === title)
-          if (exists) {
-            return this.message.error($t('_repeatAdd'))
+        case 0:
+          {
+            const exists = this.websiteList.some((item) => item.title === title)
+            if (exists) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+
+            this.websiteList.unshift({
+              createdAt,
+              title,
+              icon,
+              ownVisible,
+              nav: [],
+            })
           }
-  
-          this.websiteList.unshift({
-            createdAt,
-            title,
-            icon,
-            ownVisible,
-            nav: []
-          })
-        }
           break
-  
+
         // 新增二级分类
-        case 1: {
-          const exists = this.twoTableData.some(item => item.title === title)
-          if (exists) {
-            return this.message.error($t('_repeatAdd'))
+        case 1:
+          {
+            const exists = this.twoTableData.some(
+              (item) => item.title === title
+            )
+            if (exists) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+
+            this.twoTableData.unshift({
+              createdAt,
+              title,
+              icon,
+              ownVisible,
+              nav: [],
+            })
           }
-  
-          this.twoTableData.unshift({
-            createdAt,
-            title,
-            icon,
-            ownVisible,
-            nav: []
-          })
-        }
           break
-  
+
         // 新增三级分类
-        case 2: {
-          const exists = this.threeTableData.some(item => item.title === title)
-          if (exists) {
-            return this.message.error($t('_repeatAdd'))
+        case 2:
+          {
+            const exists = this.threeTableData.some(
+              (item) => item.title === title
+            )
+            if (exists) {
+              return this.message.error(`${$t('_repeatAdd')} "${title}"`)
+            }
+
+            this.threeTableData.unshift({
+              createdAt,
+              title,
+              icon,
+              ownVisible,
+              nav: [],
+            })
           }
-  
-          this.threeTableData.unshift({
-            createdAt,
-            title,
-            icon,
-            ownVisible,
-            nav: []
-          })
-        }
           break
       }
       this.message.success($t('_addSuccess'))

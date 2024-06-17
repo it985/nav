@@ -1,10 +1,11 @@
-// @ts-nocheck
 // Copyright @ 2018-present xiejiahe. All rights reserved. MIT license.
 // See https://github.com/xjh22222228/nav
 
 import { INavProps } from '../types'
 import { websiteList } from '../store'
 import { $t } from '../locale'
+
+let id = -Date.now()
 
 function getCreatedAt(node?: Element): string {
   const now = new Date().toISOString()
@@ -22,7 +23,7 @@ function getCreatedAt(node?: Element): string {
 }
 
 function getTitle(node: Element) {
-  return node.textContent
+  return node.textContent || ''
 }
 
 function getUrl(node: Element) {
@@ -55,7 +56,9 @@ function findAllNoCate(roolDL: Element) {
         url,
         urls: {},
         desc: '',
-        rate: 5
+        rate: 5,
+        id: (id += 1),
+        breadcrumb: [],
       })
     }
   }
@@ -68,6 +71,12 @@ export function parseBookmark(htmlStr: string) {
   const importEl = document.createElement('div')
   importEl.innerHTML = htmlStr
   const roolDL = importEl.querySelector('dl dl')
+
+  if (!roolDL) {
+    return {
+      message: '未找到dl dl节点',
+    }
+  }
 
   let ii = 0
   let jj = 0
@@ -87,8 +96,8 @@ export function parseBookmark(htmlStr: string) {
         data.push({
           title,
           createdAt,
-          icon: null,
-          nav: []
+          icon: '',
+          nav: [],
         })
 
         // Two Level
@@ -103,9 +112,9 @@ export function parseBookmark(htmlStr: string) {
             nav: [
               {
                 title: $t('_uncategorized'),
-                nav: allNoCateData
-              }
-            ]
+                nav: allNoCateData,
+              },
+            ],
           })
         }
 
@@ -120,8 +129,8 @@ export function parseBookmark(htmlStr: string) {
             data[ii - 1].nav.push({
               title,
               createdAt,
-              icon: null,
-              nav: []
+              icon: '',
+              nav: [],
             })
 
             // Three Level
@@ -133,7 +142,7 @@ export function parseBookmark(htmlStr: string) {
               data[ii - 1].nav[jj - 1].nav.push({
                 createdAt: nowCratedAt,
                 title: $t('_uncategorized'),
-                nav: allNoCateData
+                nav: allNoCateData,
               })
             }
             for (let k = 0; k < DL3.childElementCount; k++) {
@@ -148,7 +157,7 @@ export function parseBookmark(htmlStr: string) {
                   title,
                   createdAt,
                   nav: [],
-                  icon: null
+                  icon: '',
                 })
 
                 // Website Level
@@ -170,7 +179,9 @@ export function parseBookmark(htmlStr: string) {
                       urls: {},
                       rate: 5,
                       top: false,
-                      icon
+                      icon,
+                      id: (id += 1),
+                      breadcrumb: [],
                     })
                   }
                 }
@@ -193,11 +204,11 @@ export function parseBookmark(htmlStr: string) {
             nav: [
               {
                 title: $t('_uncategorized'),
-                nav: allNoCateData
-              }
-            ]
-          }
-        ]
+                nav: allNoCateData,
+              },
+            ],
+          },
+        ],
       })
     }
   } catch (error) {
@@ -210,7 +221,7 @@ export function parseBookmark(htmlStr: string) {
     for (let i = 0; i < data.length; i++) {
       const item = data[i] as any
       const title = item.title || item.name
-      const idx = list.findIndex(item => (item.title || item.name) === title)
+      const idx = list.findIndex((item) => (item.title || item.name) === title)
 
       // Repeat
       if (idx !== -1) {

@@ -2,15 +2,18 @@
 // See https://github.com/xjh22222228/nav
 
 export type ThemeType =
+  | 'Current'
   | 'Light'
   | 'Sim'
   | 'Side'
   | 'App'
   | 'Shortcut'
 
+type OverType = 'overflow' | 'ellipsis'
 
 export interface ITagPropValues {
-  name?: string
+  id: number
+  name: string
   color: string
   createdAt: string
   desc: string
@@ -21,9 +24,10 @@ export interface ITagProp {
   [tagName: string]: ITagPropValues
 }
 
-export interface INavFourProp {
-  __name__: string | undefined
-  __desc__: string | undefined
+export interface IWebProps {
+  __name__?: string | undefined // 搜索原name值
+  __desc__?: string | undefined
+  id: string | number
   name: string
   desc: string
   url: string
@@ -33,9 +37,12 @@ export interface INavFourProp {
   top?: boolean
   index?: number // sort
   ownVisible?: boolean
+  breadcrumb: string[]
+  ok?: boolean
   urls?: {
     [tagName: string]: string
   }
+  [key: string]: any
 }
 
 export interface INavThreeProp {
@@ -44,7 +51,7 @@ export interface INavThreeProp {
   createdAt?: string
   collapsed?: boolean
   ownVisible?: boolean
-  nav: INavFourProp[]
+  nav: IWebProps[]
   [key: string]: any
 }
 
@@ -82,40 +89,67 @@ export interface ISettings {
   favicon: string
   language: 'zh-CN' | 'en'
   loading: string
-  homeUrl?: string
+  homeUrl: string
   title: string
   description: string
   keywords: string
   theme: ThemeType
+  openSEO: boolean
   appTheme: ThemeType
-  footerContent?: string|null
-  headerContent?: string|null
-  baiduStatisticsUrl?: string
-  cnzzStatisticsUrl?: string
-  iconfontUrl?: string
+  footerContent: string
+  headerContent: string
   showGithub: boolean
   showLanguage: boolean
-  showCopy: Boolean|undefined
-  showShare: Boolean|undefined
+  showCopy: Boolean | undefined
+  showShare: Boolean | undefined
+  showThemeToggle: Boolean
+  actionUrl: string | null
+  checkUrl: boolean
+  errorUrlCount?: number
 
-  simThemeImages: Record<string, string>[]
+  lightCardStyle: string
+  lightOverType: OverType
+  lightImages: Record<string, any>[]
+
+  simThemeImages: Record<string, any>[]
   simThemeDesc: string
   simThemeHeight: number
   simThemeAutoplay: boolean
+  simCardStyle: string
+  simTitle: string
+  simOverType: OverType
 
-  sideThemeImages: Record<string, string>[]
+  sideThemeImages: Record<string, any>[]
   sideThemeHeight: number
   sideThemeAutoplay: boolean
+  sideCardStyle: string
+  sideTitle: string
 
-  shortcutThemeImages: Record<string, string>[]
+  shortcutThemeImages: Record<string, any>[]
   shortcutThemeShowWeather: boolean
+  shortcutTitle: string
+
+  superTitle: string
+  superOverType: OverType
+  superCardStyle: string
+  superImages: Record<string, any>[]
 
   showRate: boolean
-  mirrorList: Record<string, string>[]
+  mirrorList: Record<string, any>[]
 }
 
 export interface IConfig {
   gitRepoUrl: string
+  provider: 'Github' | 'Gitee'
   branch: string
   hashMode: boolean
+}
+
+export type internalProps = {
+  loginViewCount: number
+  userViewCount: number
+}
+
+declare global {
+  const Swiper: any
 }

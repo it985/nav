@@ -4,14 +4,13 @@
 
 import { Component } from '@angular/core'
 import { $t } from 'src/locale'
-import { isLogin } from 'src/utils/user'
+import { isLogin, userLogout } from 'src/utils/user'
 import { Router } from '@angular/router'
-import { STORAGE_KEY_MAP } from 'src/constants'
 
 @Component({
   selector: 'app-system',
   templateUrl: './index.component.html',
-  styleUrls: ['./index.component.scss']
+  styleUrls: ['./index.component.scss'],
 })
 export default class SystemComponent {
   $t = $t
@@ -19,13 +18,21 @@ export default class SystemComponent {
   showLoginModal: boolean = !isLogin
   currentMenu: string = ''
 
-  constructor (
-    private router: Router,
-  ) {}
+  constructor(private router: Router) {}
 
-  ngOnInit () {
+  ngOnInit() {
     const u = window.location.href.split('/')
     this.currentMenu = u[u.length - 1]
+
+    // 解决暗黑模式部分样式不正确问题，后台没有暗黑
+    if (!(window.location.hostname === 'localhost')) {
+      const isReload = window.sessionStorage.getItem('reload')
+      window.sessionStorage.removeItem('reload')
+      if (!isReload) {
+        window.sessionStorage.setItem('reload', '1')
+        window.location.reload()
+      }
+    }
   }
 
   goBack() {
@@ -37,7 +44,7 @@ export default class SystemComponent {
   }
 
   logout() {
-    localStorage.removeItem(STORAGE_KEY_MAP.token)
+    userLogout()
     this.router.navigate(['/'])
     setTimeout(() => {
       location.reload()
