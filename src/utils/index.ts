@@ -228,7 +228,6 @@ export function queryString(): {
 }
 
 export function adapterWebsiteList(websiteList: any[]) {
-  const createdAt = new Date().toISOString()
   function filterOwn(item: IWebProps) {
     if (item.ownVisible && !isLogin) {
       return false
@@ -238,7 +237,6 @@ export function adapterWebsiteList(websiteList: any[]) {
   websiteList = websiteList.filter(filterOwn)
   for (let i = 0; i < websiteList.length; i++) {
     const item = websiteList[i]
-    item.createdAt ||= createdAt
 
     if (Array.isArray(item.nav)) {
       item.nav = item.nav.filter(filterOwn)
@@ -347,57 +345,16 @@ export function isDark(): boolean {
   return Boolean(Number(storageVal))
 }
 
-export async function getLogoUrl(
-  url: string
-): Promise<boolean | string | null> {
+export async function getWebInfo(url: string): Promise<Record<string, any>> {
   try {
-    const c = [
-      '/favicon.png',
-      '/favicon.svg',
-      '/favicon.jpg',
-      '/favicon.ico',
-      '/logo.png',
-    ]
-    try {
-      const res = await getIconUrl(url)
-      if (res.data.url) {
-        return res.data.url
-      }
-    } catch (error) {}
-    const { origin } = new URL(url)
-
-    const promises = c.map((url) => {
-      const iconUrl = origin + url
-      return new Promise((resolve) => {
-        try {
-          const img = document.createElement('img')
-          img.src = iconUrl
-          img.style.display = 'none'
-          img.onload = () => {
-            img.parentNode?.removeChild(img)
-            resolve(iconUrl)
-          }
-          img.onerror = () => {
-            img.parentNode?.removeChild(img)
-            resolve(false)
-          }
-          document.body.append(img)
-        } catch (error) {
-          resolve(false)
-        }
-      })
-    })
-
-    const all = await Promise.all<any>(promises)
-    for (let i = 0; i < all.length; i++) {
-      if (all[i]) {
-        return all[i]
-      }
+    const res = await getIconUrl(url)
+    return {
+      ...res.data,
     }
-  } catch {
-    return null
+  } catch (error) {}
+  return {
+    status: false,
   }
-  return null
 }
 
 export function copyText(el: Event, text: string): Promise<boolean> {

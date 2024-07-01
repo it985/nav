@@ -6,8 +6,8 @@ import { $t } from 'src/locale'
 import { NzMessageService } from 'ng-zorro-antd/message'
 import { NzNotificationService } from 'ng-zorro-antd/notification'
 import { NzModalService } from 'ng-zorro-antd/modal'
-import { websiteList, settings, tagMap } from 'src/store'
-import { setAuthCode, getAuthCode } from 'src/utils/user'
+import { websiteList, tagMap } from 'src/store'
+import { setAuthCode, getAuthCode, removeAuthCode } from 'src/utils/user'
 import { getUserCollect, delUserCollect, updateFileContent } from 'src/services'
 import { DB_PATH } from 'src/constants'
 import event from 'src/utils/mitt'
@@ -37,30 +37,28 @@ export default class CollectComponent {
   }
 
   handleDelete(idx: number) {
+    this.submitting = true
     delUserCollect({
       data: this.dataList[idx],
-    }).then((res) => {
-      if (res.data.success) {
-        this.dataList = res.data.data
-      } else {
-        this.message.error(res.data.message || '网络出错')
-      }
     })
-  }
-
-  getUserCollect() {
-    getUserCollect()
-      .then((res: any) => {
-        this.isPermission = !!res.data.success
-        if (res.data.success === false) {
-          this.message.error(res.data.message)
-        }
-        if (res.data.success && res.data.data) {
+      .then((res) => {
+        if (res.data.success) {
           this.dataList = res.data.data
         }
       })
-      .catch((e: any) => {
-        this.message.error(e.message || '网络出错')
+      .finally(() => {
+        this.submitting = false
+      })
+  }
+
+  getUserCollect() {
+    this.submitting = true
+    getUserCollect()
+      .then((res: any) => {
+        this.isPermission = !!res.data.success
+        if (res.data.success && res.data.data) {
+          this.dataList = res.data.data
+        }
       })
       .finally(() => {
         this.submitting = false
@@ -72,9 +70,13 @@ export default class CollectComponent {
       return
     }
 
-    this.submitting = true
     setAuthCode(this.authCode)
     this.getUserCollect()
+  }
+
+  logoutAuthCode() {
+    removeAuthCode()
+    window.location.reload()
   }
 
   handleConfirmGet(data: any, idx: number) {
@@ -128,16 +130,14 @@ export default class CollectComponent {
           .then(() => {
             this.message.success($t('_syncSuccessTip'))
           })
-          .catch((res: any) => {
-            this.notification.error(
-              `${$t('_error')}: ${res?.response?.status ?? 1401}`,
-              $t('_syncFailTip')
-            )
-          })
           .finally(() => {
             this.submitting = false
           })
       },
     })
+  }
+
+  trackByItem(i: number, item: any) {
+    return item.id
   }
 }
